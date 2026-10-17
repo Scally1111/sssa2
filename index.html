@@ -1,31 +1,34 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-  <meta name="theme-color" content="#0b1020">
-  <title>Serega — Online Arena</title><link rel="stylesheet" href="/style.css">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#0b1020"><title>Serega — Online Arena</title><link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <main id="app">
-    <section id="lobby" class="lobby">
-      <div class="brand"><div class="brand-icon">S</div><div><div class="eyebrow">ONLINE ARENA</div><h1>Serega</h1></div></div>
-      <p class="lead">Зови друзей. Создавай комнату. Побеждай.</p>
-      <label class="field-label" for="nickname">ТВОЙ НИКНЕЙМ</label>
-      <input id="nickname" maxlength="18" placeholder="Например, Serega" autocomplete="nickname">
-      <button id="createBtn" class="primary">＋ Создать комнату</button>
-      <div class="separator"><span>ИЛИ</span></div>
-      <label class="field-label" for="roomCode">КОД КОМНАТЫ</label>
-      <div class="join-row"><input id="roomCode" maxlength="12" placeholder="Например, A7K9Q2"><button id="joinBtn" class="secondary">Войти</button></div>
-      <p id="lobbyError" class="error" role="status"></p>
-      <div class="controls-card"><div class="controls-title">УПРАВЛЕНИЕ</div><div class="key-row"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>— движение</span></div><div class="key-row"><kbd>МЫШЬ</kbd><span>— прицел</span><kbd>ЛКМ</kbd><span>— огонь</span></div></div>
-      <p class="tiny">До 12 игроков в комнате · Серверная обработка попаданий</p>
-    </section>
-    <section id="game" class="game hidden">
-      <header class="game-top"><div class="mini-brand"><span class="brand-dot">S</span><strong>Serega</strong><span class="live"><i></i> ONLINE</span></div><div class="room-actions"><span id="roomLabel">КОМНАТА —</span><button id="copyBtn" class="small-btn">↗ Пригласить</button><button id="leaveBtn" class="small-btn exit">Выйти</button></div></header>
-      <div class="game-layout"><div class="canvas-wrap"><canvas id="arena" width="1200" height="760"></canvas><div id="toast" class="toast hidden"></div><div class="hud"><div class="hp-wrap"><span>HP</span><div class="hp-track"><div id="hpBar"></div></div><b id="hpText">100</b></div><div class="hud-tip">WASD — движение · ЛКМ — стрелять</div></div></div>
-      <aside class="leaderboard"><div class="side-heading">ИГРОКИ <span id="playerCount">0/12</span></div><div id="playersList"></div><div class="side-note">Попадание наносит 34 урона</div></aside></div>
-      <footer class="game-footer"><span><i class="green-dot"></i> Соединение с сервером активно</span><span>ARENA 01 · SEREGA</span></footer>
-    </section>
-  </main>
-  <script src="/client.js"></script>
+<main id="app">
+<section id="lobby" class="lobby">
+<div class="brand"><div class="brand-icon">S</div><div><div class="eyebrow">ONLINE ARENA</div><h1>Serega</h1></div></div>
+<p class="lead">Зови друзей. Создавай комнату. Побеждай.</p>
+<label class="field-label" for="nickname">ТВОЙ НИКНЕЙМ</label><input id="nickname" maxlength="18" placeholder="Например, Serega" autocomplete="nickname">
+<div class="profile-options">
+<div class="avatar-setting"><div id="avatarPreview" class="avatar-preview">👤</div><div><label class="field-label" for="avatarFile">АВАТАРКА</label><input id="avatarFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><button id="removeAvatarBtn" type="button" class="secondary">Убрать аватарку</button></div></div>
+<label class="field-label" for="weaponSelect">ОРУЖИЕ</label><select id="weaponSelect"><option value="pistol">Пистолет</option><option value="rifle">Автомат</option><option value="shotgun">Дробовик</option></select>
+<p>Управление: <span id="controlsSummary">W A S D</span></p><button id="openSettingsBtn" type="button" class="secondary">⚙ Настройки передвижения</button>
+</div>
+<button id="createBtn" class="primary" type="button">＋ Создать комнату</button>
+<div class="separator"><span>ИЛИ</span></div><label class="field-label" for="roomCode">КОД КОМНАТЫ</label>
+<div class="join-row"><input id="roomCode" maxlength="12" placeholder="Например, A7K9Q2"><button id="joinBtn" class="secondary" type="button">Войти</button></div>
+<p id="lobbyError" class="error" role="status"></p>
+<div class="controls-card"><div class="controls-title">УПРАВЛЕНИЕ</div><div class="key-row"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>— движение</span></div><div class="key-row"><kbd>МЫШЬ</kbd><span>— прицел</span><kbd>ЛКМ</kbd><span>— огонь</span></div></div>
+<p class="tiny">До 12 игроков в комнате · Серверная обработка попаданий</p>
+</section>
+<section id="game" class="game hidden">
+<header class="game-top"><div class="mini-brand"><span class="brand-dot">S</span><strong>Serega</strong><span class="live"><i></i> ONLINE</span></div><div class="room-actions"><span id="roomLabel">КОМНАТА —</span><button id="copyBtn" class="small-btn" type="button">↗ Пригласить</button><button id="openSettingsBtnGame" class="small-btn" type="button">⚙</button><button id="leaveBtn" class="small-btn exit" type="button">Выйти</button></div></header>
+<div class="game-layout"><div class="canvas-wrap"><canvas id="arena" width="1200" height="760"></canvas><div id="toast" class="toast hidden"></div><div class="hud"><div class="hp-wrap"><span>HP</span><div class="hp-track"><div id="hpBar"></div></div><b id="hpText">100</b></div><div class="hud-tip">WASD — движение · ЛКМ — стрелять · <span id="weaponLabel">Пистолет</span></div></div></div>
+<aside class="leaderboard"><div class="side-heading">ИГРОКИ <span id="playerCount">0/12</span></div><div id="sidePlayerCount" hidden>0/12</div><div id="playersList"></div><div class="side-note">1 — пистолет · 2 — автомат · 3 — дробовик</div></aside></div>
+<footer class="game-footer"><span><i class="green-dot"></i> Соединение с сервером активно</span><span>ARENA 01 · SEREGA</span></footer>
+</section>
+</main>
+<div id="settingsModal" class="settings-modal hidden" role="dialog" aria-modal="true" aria-label="Настройки управления"><div class="settings-panel"><h2>Настройки передвижения</h2><p>Нажми кнопку рядом с действием, затем выбери клавишу.</p><div id="keyBindings"></div><p id="bindingStatus" role="status"></p><div class="settings-actions"><button id="resetControlsBtn" type="button" class="secondary">Сбросить</button><button id="closeSettingsBtn" type="button" class="secondary">Закрыть</button><button id="saveSettingsBtn" type="button" class="primary">Готово</button></div></div></div>
+<script src="/client.js"></script>
 </body></html>
