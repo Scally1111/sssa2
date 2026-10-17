@@ -42,3 +42,10 @@ This is a playable starter/prototype, not a promise of lag-free operation for ev
 - Configurable dash key (default Shift)
 - TAB: scoreboard (hold)
 - ESC: pause/settings behavior
+
+
+## Update: realism and controls
+- Added more industrial warehouse details (ceiling trusses, bay signs and safety posts) and improved the first-person rifle silhouette with magazine, grip and handguard.
+- Keyboard movement now remains responsive after resuming even if pointer lock is not yet available; click the game view to capture the mouse for looking around.
+- Reduced camera bob to avoid excessive screen shake.
+- Weapon keys: `1` rifle, `3` knife. `Shift` dash. `TAB` scoreboard.
