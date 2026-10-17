@@ -1,80 +1,83 @@
-(() => {
-  const $ = id => document.getElementById(id);
-  const lobby=$('lobby'),game=$('game'),canvas=$('arena'),ctx=canvas.getContext('2d',{alpha:false});
-  const nickname=$('nickname'),roomCode=$('roomCode'),errorBox=$('lobbyError');
-  const AVATAR_KEY='serega_avatar_v1',KEYS_KEY='serega_keys_v1',WEAPON_KEY='serega_weapon_v1';
-  const weaponInfo={pistol:{label:'Пистолет',color:'#c8f7ff'},rifle:{label:'Автомат',color:'#ffe18a'},shotgun:{label:'Дробовик',color:'#ffb38a'}};
-  const defaultBindings={up:'w',down:'s',left:'a',right:'d'};
-  let bindings={...defaultBindings};try{bindings={...bindings,...JSON.parse(localStorage.getItem(KEYS_KEY)||'{}')};}catch{}
-  let avatarData=localStorage.getItem(AVATAR_KEY)||'';
-  let selectedWeapon=localStorage.getItem(WEAPON_KEY)||'pistol';if(!weaponInfo[selectedWeapon])selectedWeapon='pistol';
-  let socket=null,selfId=null,roomId=null,players=new Map(),bullets=[];
-  let arena={width:1800,height:1100},keys={},mouse={x:600,y:380,down:false},camera={x:0,y:0};
-  let toastTimer=null,joined=false,rafId=0,lastSend=0,lastLeaderboard='',lastDpr=0,lastW=0,lastH=0;
-  const avatarImages=new Map();
-  const urlParams=new URLSearchParams(location.search);if(urlParams.get('room'))roomCode.value=urlParams.get('room').toUpperCase();
-  nickname.value=localStorage.getItem('serega_name')||'';$('weaponSelect').value=selectedWeapon;
-  function setAvatarPreview(){const el=$('avatarPreview');el.replaceChildren();if(avatarData){const img=new Image();img.src=avatarData;el.append(img);}else el.textContent='👤';}
-  setAvatarPreview();updateControlsSummary();
-  $('avatarFile').addEventListener('change',e=>{const file=e.target.files&&e.target.files[0];if(!file)return;if(!/^image\/(png|jpeg|webp|gif)$/.test(file.type)){toast('Выбери PNG, JPG, WEBP или GIF');e.target.value='';return;}if(file.size>8*1024*1024){toast('Файл слишком большой — максимум 8 МБ');e.target.value='';return;}
-    const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{try{const c=document.createElement('canvas');c.width=c.height=96;const g=c.getContext('2d');const side=Math.min(img.width,img.height),sx=(img.width-side)/2,sy=(img.height-side)/2;g.drawImage(img,sx,sy,side,side,0,0,96,96);avatarData=c.toDataURL('image/jpeg',.76);localStorage.setItem(AVATAR_KEY,avatarData);setAvatarPreview();toast('Аватарка сохранена');}catch{toast('Не удалось обработать изображение');}URL.revokeObjectURL(url);};img.onerror=()=>{URL.revokeObjectURL(url);toast('Не удалось открыть это изображение');};img.src=url;
-  });
-  $('removeAvatarBtn').addEventListener('click',()=>{avatarData='';localStorage.removeItem(AVATAR_KEY);$('avatarFile').value='';setAvatarPreview();toast('Аватарка удалена');});
-  $('weaponSelect').addEventListener('change',()=>{selectedWeapon=$('weaponSelect').value;localStorage.setItem(WEAPON_KEY,selectedWeapon);if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'weapon',weapon:selectedWeapon}));updateWeaponHud();});
-  function updateWeaponHud(){$('weaponLabel').textContent=weaponInfo[selectedWeapon].label;}
-  function wsUrl(){return `${location.protocol==='https:'?'wss':'ws'}://${location.host}`;}
-  function connect(kind,id){errorBox.textContent='';if(socket&&(socket.readyState===WebSocket.OPEN||socket.readyState===WebSocket.CONNECTING))socket.close();joined=false;socket=new WebSocket(wsUrl());
-    socket.addEventListener('open',()=>socket.send(JSON.stringify({type:kind,roomId:id,name:nickname.value.trim()||'Игрок',avatar:avatarData,weapon:selectedWeapon})));
-    socket.addEventListener('message',event=>{let msg;try{msg=JSON.parse(event.data);}catch{return;}
-      if(msg.type==='error'){if(!joined)errorBox.textContent=msg.message;else toast(msg.message);return;}
-      if(msg.type==='joined'){joined=true;selfId=msg.selfId;roomId=msg.roomId;arena=msg.state.arena;players=new Map(msg.state.players.map(p=>[p.id,p]));bullets=msg.state.bullets||[];lobby.classList.add('hidden');game.classList.remove('hidden');$('roomLabel').textContent=`КОМНАТА ${roomId}`;history.replaceState({},'',`/?room=${roomId}`);localStorage.setItem('serega_name',nickname.value.trim());toast('Комната готова. Отправь ссылку другу!');renderLeaderboard(true);updateWeaponHud();startDrawing();}
-      else if(msg.type==='state'){const next=new Map();for(const p of msg.players){const old=players.get(p.id);if(old&&old.avatar)p.avatar=old.avatar;next.set(p.id,p);}players=next;bullets=msg.bullets||[];const me=players.get(selfId);if(me){$('hpBar').style.width=`${me.hp}%`;$('hpText').textContent=me.hp;}renderLeaderboard(false);}
-      else if(msg.type==='joinedPlayer'){const old=players.get(msg.player.id);if(old&&old.avatar&&!msg.player.avatar)msg.player.avatar=old.avatar;players.set(msg.player.id,msg.player);renderLeaderboard(true);if(msg.player.id!==selfId)toast(`${msg.player.name} подключился`);}
-      else if(msg.type==='left'){players.delete(msg.playerId);renderLeaderboard(true);}
-      else if(msg.type==='hit'){const p=players.get(msg.targetId);if(p)p.hp=msg.hp;if(msg.targetId===selfId)toast(msg.hp===0?'Ты выбыл! Возвращение через секунду…':`Попадание! Осталось ${msg.hp} HP`);if(msg.killerId===selfId)toast('Противник устранён!');}
-      else if(msg.type==='respawn'){const old=players.get(msg.player.id);if(old&&old.avatar&&!msg.player.avatar)msg.player.avatar=old.avatar;players.set(msg.player.id,msg.player);renderLeaderboard(true);if(msg.player.id===selfId)toast('Ты снова в бою!');}
-      else if(msg.type==='weaponChanged'){selectedWeapon=msg.weapon;localStorage.setItem(WEAPON_KEY,selectedWeapon);$('weaponSelect').value=selectedWeapon;updateWeaponHud();}
-    });
-    socket.addEventListener('close',()=>{if(joined){toast('Соединение потеряно. Обнови страницу, чтобы подключиться снова.');joined=false;}});
-    socket.addEventListener('error',()=>{if(!joined)errorBox.textContent='Не удалось подключиться к серверу.';});
-  }
-  $('createBtn').addEventListener('click',()=>connect('create'));
-  $('joinBtn').addEventListener('click',()=>{const id=roomCode.value.trim().toUpperCase();if(!id){errorBox.textContent='Введи код комнаты.';return;}connect('join',id);});
-  roomCode.addEventListener('keydown',e=>{if(e.key==='Enter')$('joinBtn').click();});nickname.addEventListener('keydown',e=>{if(e.key==='Enter')$('createBtn').click();});
-  $('copyBtn').addEventListener('click',async()=>{const link=`${location.origin}/?room=${roomId}`;try{await navigator.clipboard.writeText(link);toast('Ссылка скопирована! Отправь её другу.');}catch{prompt('Скопируй ссылку на комнату:',link);}});
-  $('leaveBtn').addEventListener('click',()=>{if(socket)socket.close();joined=false;selfId=null;roomId=null;players.clear();bullets=[];game.classList.add('hidden');lobby.classList.remove('hidden');history.replaceState({},'','/');});
-  function toast(text){const el=$('toast');el.textContent=text;el.classList.remove('hidden');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.add('hidden'),2200);}
-  function renderLeaderboard(force){const sorted=[...players.values()].sort((a,b)=>b.kills-a.kills);$('playerCount').textContent=`${sorted.length}/12`;$('sidePlayerCount').textContent=`${sorted.length}/12`;const sig=sorted.map(p=>`${p.id}:${p.name}:${p.kills}:${p.deaths}:${p.avatar?'a':'n'}`).join('|');if(!force&&sig===lastLeaderboard)return;lastLeaderboard=sig;const list=$('playersList'),frag=document.createDocumentFragment();for(const p of sorted){const row=document.createElement('div');row.className='player-row';const img=document.createElement('img');img.className='player-avatar';img.alt='';img.src=p.avatar||makeAvatarFallback(p.color);const name=document.createElement('span');name.className='player-name';name.textContent=p.name+(p.id===selfId?' (ты)':'');const score=document.createElement('span');score.className='player-score';score.textContent=`${p.kills} ☠`;row.append(img,name,score);frag.append(row);}list.replaceChildren(frag);}
-  function makeAvatarFallback(color){const safe=/^#[0-9a-f]{6}$/i.test(color||'')?color:'#68e1fd';return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="32" fill="${safe}"/><circle cx="32" cy="24" r="12" fill="#0b1020"/><path d="M10 62c1-17 10-25 22-25s21 8 22 25" fill="#0b1020"/></svg>`)}`;}
-  function resizeCanvas(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,1.5),w=Math.round(rect.width*dpr),h=Math.round(rect.height*dpr);if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;lastW=w;lastH=h;lastDpr=dpr;}}
-  function startDrawing(){if(!rafId)rafId=requestAnimationFrame(draw);}
-  function draw(){rafId=requestAnimationFrame(draw);if(game.classList.contains('hidden'))return;resizeCanvas();const w=canvas.width,h=canvas.height;ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#0b1322';ctx.fillRect(0,0,w,h);const me=players.get(selfId);if(me){camera.x=me.x-w/2;camera.y=me.y-h/2;}camera.x=Math.max(0,Math.min(arena.width-w,camera.x));camera.y=Math.max(0,Math.min(arena.height-h,camera.y));ctx.save();ctx.translate(-camera.x,-camera.y);
-    // Use a single path for grid lines rather than creating a path for each line.
-    ctx.strokeStyle='#1c2a40';ctx.lineWidth=1;ctx.beginPath();for(let x=0;x<=arena.width;x+=50){ctx.moveTo(x,0);ctx.lineTo(x,arena.height);}for(let y=0;y<=arena.height;y+=50){ctx.moveTo(0,y);ctx.lineTo(arena.width,y);}ctx.stroke();
-    ctx.fillStyle='#111d30';ctx.strokeStyle='#283d5a';ctx.lineWidth=3;for(const [x,y,bw,bh] of [[260,220,110,110],[650,130,190,55],[1050,300,80,180],[420,650,200,65],[1350,720,150,100],[900,880,110,90],[150,850,170,60]]){ctx.beginPath();ctx.roundRect(x,y,bw,bh,10);ctx.fill();ctx.stroke();}
-    ctx.strokeStyle='#5c6b91';ctx.lineWidth=5;ctx.strokeRect(0,0,arena.width,arena.height);
-    for(const b of bullets){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.angle);ctx.fillStyle=(weaponInfo[b.weapon]||weaponInfo.pistol).color;ctx.beginPath();ctx.roundRect(-7,-2,14,4,2);ctx.fill();ctx.restore();}
-    for(const p of players.values()){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);ctx.globalAlpha=p.hp<=0?.25:1;ctx.fillStyle=p.color;ctx.beginPath();ctx.roundRect(-2,-6,31,12,5);ctx.fill();ctx.restore();ctx.globalAlpha=1;
-      if(p.avatar){let avatarImg=avatarImages.get(p.avatar);if(!avatarImg){avatarImg=new Image();avatarImg.src=p.avatar;avatarImages.set(p.avatar,avatarImg);}if(avatarImg.complete&&avatarImg.naturalWidth){ctx.save();ctx.beginPath();ctx.arc(p.x,p.y,13,0,Math.PI*2);ctx.clip();ctx.drawImage(avatarImg,p.x-13,p.y-13,26,26);ctx.restore();}else{ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,12,0,Math.PI*2);ctx.fill();}}
-      else{ctx.fillStyle='#e8f4ff';ctx.beginPath();ctx.arc(p.x,p.y,13,0,Math.PI*2);ctx.fill();ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,9,0,Math.PI*2);ctx.fill();}
-      ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillStyle='#e9efff';ctx.fillText(p.name,p.x,p.y-28);ctx.fillStyle='#293449';ctx.fillRect(p.x-18,p.y-21,36,4);ctx.fillStyle=p.hp>50?'#62edb0':p.hp>25?'#ffd166':'#ff547c';ctx.fillRect(p.x-18,p.y-21,36*Math.max(0,p.hp)/100,4);
-    }ctx.restore();
-    const rect=canvas.getBoundingClientRect(),sx=canvas.width/rect.width,sy=canvas.height/rect.height;ctx.strokeStyle='#d7f5ff';ctx.lineWidth=1.5;ctx.globalAlpha=.85;ctx.beginPath();ctx.arc(mouse.x*sx,mouse.y*sy,7,0,Math.PI*2);ctx.moveTo(mouse.x*sx-12,mouse.y*sy);ctx.lineTo(mouse.x*sx-4,mouse.y*sy);ctx.moveTo(mouse.x*sx+4,mouse.y*sy);ctx.lineTo(mouse.x*sx+12,mouse.y*sy);ctx.moveTo(mouse.x*sx,mouse.y*sy-12);ctx.lineTo(mouse.x*sx,mouse.y*sy-4);ctx.moveTo(mouse.x*sx,mouse.y*sy+4);ctx.lineTo(mouse.x*sx,mouse.y*sy+12);ctx.stroke();ctx.globalAlpha=1;
-    const now=performance.now();if(socket&&socket.readyState===WebSocket.OPEN&&now-lastSend>50&&me){lastSend=now;const worldX=camera.x+mouse.x*sx,worldY=camera.y+mouse.y*sy;socket.send(JSON.stringify({type:'input',input:{up:!!keys[bindings.up],down:!!keys[bindings.down],left:!!keys[bindings.left],right:!!keys[bindings.right]},angle:Math.atan2(worldY-me.y,worldX-me.x),shoot:mouse.down,weapon:selectedWeapon}));}
-  }
-  window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k]=true;if(settingsOpen){handleBindingKey(e);return;}if(game.classList.contains('hidden'))return;const weaponKeys={'1':'pistol','2':'rifle','3':'shotgun'};if(weaponKeys[k]){selectedWeapon=weaponKeys[k];$('weaponSelect').value=selectedWeapon;localStorage.setItem(WEAPON_KEY,selectedWeapon);updateWeaponHud();if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'weapon',weapon:selectedWeapon}));}});
-  window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});window.addEventListener('blur',()=>{keys={};mouse.down=false;});
-  canvas.addEventListener('mousemove',e=>{const r=canvas.getBoundingClientRect();mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top;});canvas.addEventListener('mousedown',e=>{if(e.button===0)mouse.down=true;});window.addEventListener('mouseup',e=>{if(e.button===0)mouse.down=false;});canvas.addEventListener('contextmenu',e=>e.preventDefault());
-  // Key binding modal: rebinding is local to this browser and does not require a server restart.
-  let settingsOpen=false,listeningAction=null;
-  const actionNames={up:'Вперёд',down:'Назад',left:'Влево',right:'Вправо'};
-  function prettyKey(key){if(!key)return'—';const map={arrowup:'↑',arrowdown:'↓',arrowleft:'←',arrowright:'→',' ':'Пробел'};return map[key]||key.toUpperCase();}
-  function updateControlsSummary(){$('controlsSummary').textContent=`${prettyKey(bindings.up)} ${prettyKey(bindings.left)} ${prettyKey(bindings.down)} ${prettyKey(bindings.right)}`;}
-  function renderBindings(){const box=$('keyBindings');box.replaceChildren();for(const action of ['up','down','left','right']){const row=document.createElement('div');row.className='binding-row';const label=document.createElement('span');label.textContent=actionNames[action];const button=document.createElement('button');button.type='button';button.className='secondary'+(listeningAction===action?' listening':'');button.textContent=listeningAction===action?'Нажми клавишу':prettyKey(bindings[action]);button.addEventListener('click',()=>{listeningAction=action;$('bindingStatus').textContent=`Нажми клавишу для действия «${actionNames[action]}»`;renderBindings();});row.append(label,button);box.append(row);}}
-  function handleBindingKey(e){if(!listeningAction)return;e.preventDefault();e.stopImmediatePropagation();let key=e.key.toLowerCase();if(key==='escape'){listeningAction=null;$('bindingStatus').textContent='Назначение отменено';renderBindings();return;}if(key.length!==1&&!key.startsWith('arrow')){$('bindingStatus').textContent='Выбери буквенную клавишу или стрелку';return;}const duplicate=Object.keys(bindings).find(a=>a!==listeningAction&&bindings[a]===key);if(duplicate){$('bindingStatus').textContent=`Эта клавиша уже назначена: «${actionNames[duplicate]}»`;return;}bindings[listeningAction]=key;listeningAction=null;localStorage.setItem(KEYS_KEY,JSON.stringify(bindings));updateControlsSummary();$('bindingStatus').textContent='Клавиша сохранена';renderBindings();}
-  function openSettings(){settingsOpen=true;listeningAction=null;$('bindingStatus').textContent='';renderBindings();$('settingsModal').classList.remove('hidden');}
-  function closeSettings(){settingsOpen=false;listeningAction=null;$('settingsModal').classList.add('hidden');}
-  $('openSettingsBtn').addEventListener('click',openSettings);$('openSettingsBtnGame').addEventListener('click',openSettings);$('closeSettingsBtn').addEventListener('click',closeSettings);$('saveSettingsBtn').addEventListener('click',closeSettings);$('settingsModal').addEventListener('click',e=>{if(e.target===$('settingsModal'))closeSettings();});
-  $('resetControlsBtn').addEventListener('click',()=>{bindings={...defaultBindings};localStorage.setItem(KEYS_KEY,JSON.stringify(bindings));listeningAction=null;updateControlsSummary();renderBindings();$('bindingStatus').textContent='Управление сброшено';});
-  updateWeaponHud();
-})();
+import * as THREE from "/node_modules/three/build/three.module.js";
+
+const $=id=>document.getElementById(id);
+const defaults={volume:45,sens:8,keyForward:"W",keyBack:"S",keyLeft:"A",keyRight:"D",keyDash:"SHIFT",quality:"high",sound:"on"};
+let settings={...defaults}; try{settings={...settings,...JSON.parse(localStorage.getItem("sv3-settings")||"{}")}}catch{}
+let avatar=localStorage.getItem("sv3-avatar")||"", nickname=localStorage.getItem("sv3-name")||"Player";
+$("nickname").value=nickname;
+function avatarPreview(){ $("avatarpreview").innerHTML=avatar?`<img src="${avatar}" alt="avatar">`:"SV"; }
+avatarPreview();
+function applySettingsUI(){for(const k of Object.keys(defaults)){const el=$(k);if(el)el.value=settings[k]} $("volumeval").value=settings.volume+"%";$("sensval").value=(settings.sens/10).toFixed(1);}
+applySettingsUI();
+function saveSettings(){for(const k of Object.keys(defaults)){const el=$(k);if(el)settings[k]=el.value}localStorage.setItem("sv3-settings",JSON.stringify(settings));$("volumeval").value=settings.volume+"%";$("sensval").value=(settings.sens/10).toFixed(1);if(renderer){renderer.setPixelRatio(Math.min(devicePixelRatio,settings.quality==="low"?1:settings.quality==="medium"?1.4:2));}}
+$("volume").addEventListener("input",()=>{$("volumeval").value=$("volume").value+"%";settings.volume=+$("volume").value;localStorage.setItem("sv3-settings",JSON.stringify(settings))});
+$("sens").addEventListener("input",()=>{$("sensval").value=(+$("sens").value/10).toFixed(1);settings.sens=+$("sens").value;localStorage.setItem("sv3-settings",JSON.stringify(settings))});
+for(const k of ["keyForward","keyBack","keyLeft","keyRight","keyDash","quality","sound"])$(k).addEventListener("change",saveSettings);
+$("avatarpick").onclick=()=>$("avatarfile").click();
+$("avatarfile").onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>2*1024*1024){alert("Выбери изображение меньше 2 МБ.");return}const img=new Image();img.onload=()=>{const c=document.createElement("canvas");c.width=128;c.height=128;const ctx=c.getContext("2d");const s=Math.min(img.width,img.height);ctx.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,128,128);avatar=c.toDataURL("image/jpeg",.8);localStorage.setItem("sv3-avatar",avatar);avatarPreview()};img.src=URL.createObjectURL(f)};
+let ws=null, myId=null, roomCode=null, roster=[], gameOn=false, pointer=false, keys={}, lastSent=0, lastShot=0, dashUntil=0, nextDash=0, localHP=100, kills=0, isScore=false, isPaused=false;
+let scene,camera,renderer,player,remoteMeshes=new Map(),clock=new THREE.Clock(), raycaster=new THREE.Raycaster();
+const materials={floor:new THREE.MeshStandardMaterial({color:0x172635,roughness:.9}),wall:new THREE.MeshStandardMaterial({color:0x30465a,roughness:.8}),accent:new THREE.MeshStandardMaterial({color:0x287a91,metalness:.35,roughness:.4}),T:new THREE.MeshStandardMaterial({color:0xff8158,roughness:.65}),CT:new THREE.MeshStandardMaterial({color:0x5dc8ff,roughness:.65}),head:new THREE.MeshStandardMaterial({color:0xd2ad8c}),gun:new THREE.MeshStandardMaterial({color:0x111923,metalness:.75,roughness:.3})};
+function block(x,y,z,sx,sy,sz,mat){const m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m}
+function initWorld(){
+ scene=new THREE.Scene();scene.background=new THREE.Color(0x09111b);scene.fog=new THREE.Fog(0x09111b,35,90);
+ camera=new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.1,150);camera.position.set(0,1.65,0);
+ renderer=new THREE.WebGLRenderer({canvas:$("world"),antialias:settings.quality!=="low"});renderer.setPixelRatio(Math.min(devicePixelRatio,settings.quality==="low"?1:settings.quality==="medium"?1.4:2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=settings.quality==="high";renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+ scene.add(new THREE.HemisphereLight(0x9bc8e9,0x18202b,2));
+ const light=new THREE.DirectionalLight(0xffe5c4,2.2);light.position.set(-8,18,5);light.castShadow=true;light.shadow.mapSize.set(1024,1024);scene.add(light);
+ const floor=block(0,-.5,0,64,1,64,materials.floor);floor.receiveShadow=true;
+ // Arena walls, cover blocks, containers, and luminous lane markings.
+ block(0,3,-32,64,6,1,materials.wall);block(0,3,32,64,6,1,materials.wall);block(-32,3,0,1,6,64,materials.wall);block(32,3,0,1,6,64,materials.wall);
+ for(let z=-24;z<=24;z+=8){block(-12,1.1,z,5,2.2,3,materials.wall);block(12,1.1,z+4,5,2.2,3,materials.wall)}
+ for(let x=-24;x<=24;x+=8){block(x,1.3,-12,3,2.6,5,materials.wall);block(x+4,1.3,12,3,2.6,5,materials.wall)}
+ for(let i=-3;i<=3;i++){const stripe=block(i*3,.015,0,.035,.02,58,materials.accent);stripe.castShadow=false}
+ for(const [x,z,col] of [[-23,-23,0xff7755],[23,23,0x55cfff]]){const lamp=new THREE.PointLight(col,24,24);lamp.position.set(x,5,z);scene.add(lamp)}
+ player=new THREE.Group();const body=new THREE.Mesh(new THREE.CapsuleGeometry(.38,.8,4,8),materials.CT);body.position.y=1;player.add(body);const head=new THREE.Mesh(new THREE.SphereGeometry(.23,12,10),materials.head);head.position.y=1.65;player.add(head);const gun=blockLocal(.35,1.15,-.4,.18,.16,.7,materials.gun);player.add(gun);scene.add(player);
+}
+function blockLocal(x,y,z,sx,sy,sz,mat){const m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);m.position.set(x,y,z);return m}
+function makeRemote(p){const g=new THREE.Group();const body=new THREE.Mesh(new THREE.CapsuleGeometry(.38,.8,4,8),p.team==="T"?materials.T:materials.CT);body.position.y=1;g.add(body);const head=new THREE.Mesh(new THREE.SphereGeometry(.23,12,10),materials.head);head.position.y=1.65;g.add(head);const gun=new THREE.Mesh(new THREE.BoxGeometry(.16,.15,.7),materials.gun);gun.position.set(.35,1.15,-.4);g.add(gun);scene.add(g);return g}
+function connect(create){
+ const name=$("nickname").value.trim().slice(0,18)||"Player";localStorage.setItem("sv3-name",name);
+ let code=create?"":$("roomcode").value.trim().toUpperCase();if(!create&&!code){alert("Введи код комнаты или нажми «Создать комнату».");return}
+ const proto=location.protocol==="https:"?"wss:":"ws:";
+ ws=new WebSocket(`${proto}//${location.host}`);
+ ws.onopen=()=>ws.send(JSON.stringify({type:"join",room:code,name,team:$("team").value==="AUTO"?undefined:$("team").value,avatar}));
+ ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}
+  if(m.type==="error"){alert(m.message);return}
+  if(m.type==="joined"){myId=m.id;roomCode=m.room;roster=m.players;startGame();return}
+  if(m.type==="state"){roster=m.players||[];syncPlayers();renderRoster();if(isScore)renderScore();const me=roster.find(p=>p.id===myId);if(me){localHP=me.hp;$("health").textContent=Math.max(0,me.hp);$("hpfill").style.width=Math.max(0,me.hp)+"%";$("kills").textContent=me.score||0;kills=me.score||0;if(me.hp<=0&&!respawnTimer){respawnTimer=setTimeout(()=>{if(ws?.readyState===1)ws.send(JSON.stringify({type:"respawn"}));respawnTimer=null},1800)}}}
+  if(m.type==="feed")showFeed(m.text);
+  if(m.type==="hit"&&m.by===myId){showFeed("ПОПАДАНИЕ");}
+ };
+ ws.onclose=()=>{if(gameOn)showFeed("Соединение закрыто")};
+}
+let respawnTimer=null;
+$("create").onclick=()=>connect(true);$("join").onclick=()=>connect(false);
+function startGame(){gameOn=true;$("lobby").classList.add("hidden");$("game").classList.remove("hidden");$("roomlabel").textContent="ROOM "+roomCode;initWorld();syncPlayers();renderRoster();animate();try{renderer.domElement.requestPointerLock()}catch{}}
+function syncPlayers(){if(!scene)return;const seen=new Set();for(const p of roster){if(p.id===myId){if(player){player.position.set(p.x,0,p.z);player.rotation.y=p.yaw}continue}seen.add(p.id);let g=remoteMeshes.get(p.id);if(!g){g=makeRemote(p);remoteMeshes.set(p.id,g)}g.position.set(p.x,0,p.z);g.rotation.y=p.yaw;g.visible=p.hp>0;if(g.children[0].material!== (p.team==="T"?materials.T:materials.CT))g.children[0].material=p.team==="T"?materials.T:materials.CT}for(const [id,g] of remoteMeshes)if(!seen.has(id)){scene.remove(g);remoteMeshes.delete(id)}}
+function renderRoster(){const sorted=[...roster].sort((a,b)=>a.team.localeCompare(b.team)||b.score-a.score);$("playercount").textContent=sorted.length;$("rosterlist").innerHTML=sorted.map(p=>`<div class="person"><span class="dot" style="background:${p.team==="T"?"#ff8158":"#5dc8ff"}"></span>${p.avatar?`<img class="avatarmini" src="${p.avatar}">`:`<span class="avatarmini">${p.bot?"AI":"SV"}</span>`}<span class="personname">${escapeHtml(p.name)}${p.id===myId?" (ты)":""}</span><span class="personscore">${p.score||0}</span></div>`).join("")}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function renderScore(){const sorted=[...roster].sort((a,b)=>b.score-a.score);$("scorebody").innerHTML=sorted.map(p=>`<tr><td>${p.id===myId?"★ ":""}${escapeHtml(p.name)}${p.bot?" · AI":""}</td><td style="color:${p.team==="T"?"#ff9a75":"#78d8ff"}">${p.team==="T"?"Террористы":"Контр-террористы"}</td><td>${p.score||0}</td><td>${p.hp}</td></tr>`).join("")}
+function showFeed(t){const d=document.createElement("div");d.className="feeditem";d.textContent=t;$("feed").appendChild(d);setTimeout(()=>d.remove(),4100)}
+$("addbot").onclick=()=>{if(ws?.readyState===1)ws.send(JSON.stringify({type:"bot",name:"BOT-"+(roster.filter(p=>p.bot).length+1)}))};
+$("switchteam").onclick=()=>{const me=roster.find(p=>p.id===myId);if(ws?.readyState===1)ws.send(JSON.stringify({type:"team",team:me?.team==="T"?"CT":"T"}))};
+$("invite").onclick=async()=>{const url=new URL(location.href);url.searchParams.set("room",roomCode);try{await navigator.clipboard.writeText(url.href);$("invite").textContent="✓ Ссылка скопирована";setTimeout(()=>$("invite").textContent="↗ Пригласить",1800)}catch{prompt("Скопируй ссылку:",url.href)}};
+$("leave").onclick=leaveGame;$("pauseLeave").onclick=leaveGame;
+function leaveGame(){gameOn=false;document.exitPointerLock?.();if(ws){ws.onclose=null;ws.close();ws=null}if(renderer){renderer.dispose();renderer=null}remoteMeshes.clear();scene=null;$("game").classList.add("hidden");$("lobby").classList.remove("hidden");["settings","scoreboard","pause"].forEach(id=>$(id).classList.add("hidden"));history.replaceState(null,"",location.pathname)}
+$("openSettings").onclick=$("settingsLobby").onclick=()=>{$("settings").classList.remove("hidden");isPaused=true;document.exitPointerLock?.()};
+$("closeSettings").onclick=()=>{$("settings").classList.add("hidden");saveSettings();isPaused=false;if(gameOn)renderer?.domElement.requestPointerLock()};
+$("pauseSettings").onclick=()=>{$("pause").classList.add("hidden");$("settings").classList.remove("hidden")};
+$("resume").onclick=()=>{$("pause").classList.add("hidden");isPaused=false;renderer?.domElement.requestPointerLock()};
+$("fullscreen").onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.()};
+$("closeScore").onclick=()=>{isScore=false;$("scoreboard").classList.add("hidden");renderer?.domElement.requestPointerLock()};
+document.addEventListener("pointerlockchange",()=>{pointer=document.pointerLockElement===$("world");if(gameOn&&!pointer&&!isScore&&!$("settings").classList.contains("hidden")===false){if(!isPaused){$("pause").classList.remove("hidden");isPaused=true}}});
+document.addEventListener("mousemove",e=>{if(!pointer||!player)return;const sens=(settings.sens/10)*.0017;player.rotation.y-=e.movementX*sens;camera.rotation.order="YXZ";camera.rotation.y=player.rotation.y;camera.rotation.x=Math.max(-1.35,Math.min(1.35,camera.rotation.x-e.movementY*sens))});
+document.addEventListener("keydown",e=>{if(["TAB"," "].includes(e.key.toUpperCase()))e.preventDefault();keys[e.key.toUpperCase()]=true;if(e.key==="Tab"){isScore=true;$("scoreboard").classList.remove("hidden");document.exitPointerLock?.();renderScore()}if(e.key==="Escape"){if(!$("scoreboard").classList.contains("hidden")){$("scoreboard").classList.add("hidden");isScore=false}else if(!$("settings").classList.contains("hidden"))$("settings").classList.add("hidden")}});
+document.addEventListener("keyup",e=>{keys[e.key.toUpperCase()]=false;if(e.key==="Tab"){isScore=false;$("scoreboard").classList.add("hidden");if(gameOn&&!isPaused)renderer?.domElement.requestPointerLock()}});
+$("world").addEventListener("mousedown",e=>{if(e.button===0&&pointer&&gameOn&&!isScore){const now=performance.now();if(now-lastShot>140&&ws?.readyState===1){lastShot=now;ws.send(JSON.stringify({type:"shoot"}));playShot()}}});
+let audioCtx=null;function playShot(){if(settings.sound==="off"||+settings.volume===0)return;try{audioCtx ||=new AudioContext();const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type="sawtooth";osc.frequency.setValueAtTime(120,audioCtx.currentTime);osc.frequency.exponentialRampToValueAtTime(45,audioCtx.currentTime+.07);gain.gain.setValueAtTime(.06*(settings.volume/100),audioCtx.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.09);osc.connect(gain);gain.connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+.1)}catch{}}
+function animate(){if(!gameOn||!renderer)return;requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05),now=performance.now();if(player&&pointer&&!isPaused&&!isScore){let f=0,s=0;if(keys[settings.keyForward])f+=1;if(keys[settings.keyBack])f-=1;if(keys[settings.keyRight])s+=1;if(keys[settings.keyLeft])s-=1;const len=Math.hypot(f,s)||1;f/=len;s/=len;let speed=7.4;if(keys[settings.keyDash]&&now>nextDash){dashUntil=now+155;nextDash=now+1100;showFeed("РЫВОК!")}if(now<dashUntil)speed=22;const yaw=player.rotation.y;const vx=(-Math.sin(yaw)*f+Math.cos(yaw)*s)*speed*dt,vz=(-Math.cos(yaw)*f-Math.sin(yaw)*s)*speed*dt;player.position.x=THREE.MathUtils.clamp(player.position.x+vx,-29,29);player.position.z=THREE.MathUtils.clamp(player.position.z+vz,-29,29);
+ const t=now/1000;camera.position.set(player.position.x,1.65+Math.sin(t*10)*(f||s?0.025:0),player.position.z);camera.rotation.y=player.rotation.y;camera.rotation.x=Math.max(-1.35,Math.min(1.35,camera.rotation.x));if(now-lastSent>45&&ws?.readyState===1){lastSent=now;ws.send(JSON.stringify({type:"move",x:player.position.x,y:camera.position.y,z:player.position.z,yaw:player.rotation.y,pitch:camera.rotation.x,dash:now<dashUntil,avatar}))}$("dashlabel").textContent=now>nextDash?"READY":Math.ceil((nextDash-now)/100)/10+"s"}
+ renderer.render(scene,camera)}
+window.addEventListener("resize",()=>{if(camera&&renderer){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}});
+const q=new URLSearchParams(location.search).get("room");if(q){$("roomcode").value=q;setTimeout(()=>connect(false),350)}

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: serega-v3
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production

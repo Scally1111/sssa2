@@ -1,10 +1,10 @@
 {
-  "name": "serega-online-shooter",
-  "version": "1.1.0",
+  "name": "serega-v3",
+  "version": "1.0.0",
   "private": true,
-  "description": "Serega — online 2D arena shooter with custom avatars, key bindings and weapon choices",
+  "description": "Serega V3 — browser-based online 3D team shooter",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
   "engines": { "node": ">=20" },
-  "dependencies": { "ws": "^8.18.0" }
+  "dependencies": { "three": "^0.180.0", "ws": "^8.18.3" }
 }

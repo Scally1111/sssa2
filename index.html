@@ -1,34 +1,60 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<meta name="theme-color" content="#0b1020"><title>Serega — Online Arena</title><link rel="stylesheet" href="/style.css">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Serega V3 — Online Tactical FPS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#090d15;--panel:rgba(13,19,31,.92);--line:rgba(153,180,220,.2);--text:#edf4ff;--muted:#8c9ab2;--cyan:#66e5ff;--orange:#ff8b53}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;overflow:hidden}button,input,select{font:inherit}button{border:1px solid var(--line);background:#1b2a3e;color:var(--text);padding:11px 15px;border-radius:10px;cursor:pointer;transition:.15s}button:hover{border-color:var(--cyan);transform:translateY(-1px)}button.primary{background:linear-gradient(120deg,#4ed9ed,#4d8dff);color:#06111e;font-weight:900;border:0}button.warn{background:#4a2424}input,select{width:100%;background:#0b111c;color:var(--text);border:1px solid var(--line);padding:11px;border-radius:9px;outline:none}input:focus,select:focus{border-color:var(--cyan)}label{display:block;color:var(--muted);font-size:12px;margin:13px 0 6px}.hidden{display:none!important}
+#lobby{position:absolute;inset:0;overflow:auto;background:radial-gradient(ellipse at 70% 20%,#18344a 0%,transparent 40%),radial-gradient(ellipse at 20% 90%,#252342 0%,transparent 45%),#080c14;display:grid;place-items:center;padding:22px}
+.shell{width:min(1000px,100%);display:grid;grid-template-columns:1.1fr .9fr;border:1px solid var(--line);border-radius:24px;overflow:hidden;background:rgba(9,14,24,.78);box-shadow:0 30px 100px #0009;backdrop-filter:blur(20px)}
+.hero{padding:clamp(25px,5vw,55px);display:flex;flex-direction:column;justify-content:space-between;min-height:550px;background:linear-gradient(155deg,#122537cc,#10121fcc),repeating-linear-gradient(135deg,transparent 0 18px,#ffffff05 19px 20px)}
+.logo{font-size:12px;letter-spacing:4px;font-weight:900;color:var(--cyan)}h1{font-size:clamp(46px,7vw,78px);line-height:.9;margin:30px 0 20px;letter-spacing:-5px}h1 span{color:var(--cyan)}.sub{color:#a7b5ca;line-height:1.7;max-width:420px}.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:28px}.chip{border:1px solid var(--line);border-radius:100px;padding:8px 12px;color:#b7c8dc;font-size:11px;letter-spacing:1px}.foot{font-size:11px;color:#71829a}
+.panel{padding:clamp(22px,4vw,38px);background:#0b111bd9}.panel h2{margin:0 0 6px;font-size:23px}.muted{color:var(--muted);font-size:13px;line-height:1.5}.fieldrow{display:grid;grid-template-columns:1fr 1fr;gap:12px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}.full{width:100%;margin-top:10px}.divider{height:1px;background:var(--line);margin:22px 0}.notice{font-size:12px;color:#8ba0b9;margin-top:14px;line-height:1.6}.avatarrow{display:flex;align-items:center;gap:12px}.avatarpreview{width:42px;height:42px;border-radius:50%;background:#1a2a3d;display:grid;place-items:center;overflow:hidden;border:1px solid var(--line)}.avatarpreview img{width:100%;height:100%;object-fit:cover}
+#game{position:absolute;inset:0;background:#0b111a}#world{position:absolute;inset:0;width:100%;height:100%;display:block}.hud{position:absolute;inset:0;pointer-events:none}.hud button,.hud input,.hud select{pointer-events:auto}
+.topbar{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;padding:8px 13px;background:#07101bd9;border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(10px);font-size:12px;white-space:nowrap}.live{width:7px;height:7px;background:#5ef0a5;border-radius:50%;box-shadow:0 0 12px #5ef0a5}.topright{position:absolute;right:15px;top:14px;display:flex;gap:8px}.smallbtn{padding:8px 10px;font-size:12px;background:#07101bd9}.roster{position:absolute;left:16px;top:66px;width:215px;background:#07101bd9;border:1px solid var(--line);border-radius:13px;padding:12px;max-height:45vh;overflow:auto;backdrop-filter:blur(12px)}.rosterhead{font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:8px}.person{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 0;border-bottom:1px solid #ffffff0b}.person:last-child{border:0}.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}.personname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.personscore{color:#b4c7dc;font-variant-numeric:tabular-nums}.avatarmini{width:23px;height:23px;border-radius:7px;background:#203247;object-fit:cover;display:grid;place-items:center;font-size:10px}
+.crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px}.crosshair:before,.crosshair:after{content:"";position:absolute;background:#eafaff;box-shadow:0 0 5px #44dfff}.crosshair:before{width:2px;height:18px;left:8px}.crosshair:after{height:2px;width:18px;top:8px}.bottomleft{position:absolute;left:20px;bottom:20px;display:flex;gap:10px;align-items:end}.statbox{background:#07101be8;border:1px solid var(--line);border-radius:12px;padding:12px 16px;min-width:105px}.statlabel{font-size:9px;color:var(--muted);letter-spacing:2px}.statvalue{font-size:22px;font-weight:900;margin-top:3px}.hpbar{height:4px;background:#243447;border-radius:8px;margin-top:7px;overflow:hidden}.hpfill{height:100%;width:100%;background:linear-gradient(90deg,#54e4b4,#b8ffb8);transition:width .15s}.bottomright{position:absolute;right:20px;bottom:20px;text-align:right;font-size:11px;color:#b7c6d9;text-shadow:0 1px 5px #000}.feed{position:absolute;right:18px;top:72px;display:flex;flex-direction:column;gap:5px;align-items:end}.feeditem{background:#07101bd9;border:1px solid var(--line);padding:8px 12px;border-radius:8px;font-size:11px;animation:fade 4s forwards}@keyframes fade{0%,75%{opacity:1}100%{opacity:0}}
+.overlay{position:absolute;inset:0;background:#030711b8;display:grid;place-items:center;pointer-events:auto;backdrop-filter:blur(7px)}.modal{width:min(580px,calc(100% - 30px));max-height:85vh;overflow:auto;padding:25px;background:#0b1320;border:1px solid var(--line);border-radius:18px;box-shadow:0 25px 80px #0009}.modal h2{margin:0 0 5px}.settinggrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.range{display:flex;align-items:center;gap:9px}.range input{padding:0}.range output{min-width:40px;text-align:right;color:var(--cyan);font-size:12px}.setting-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:22px}.tabtable{width:100%;border-collapse:collapse;margin-top:15px;font-size:13px}.tabtable th{text-align:left;color:var(--muted);font-size:10px;letter-spacing:1px;padding:10px;border-bottom:1px solid var(--line)}.tabtable td{padding:10px;border-bottom:1px solid #ffffff0b}.keycap{border:1px solid #53647a;background:#1c2b3d;border-radius:5px;padding:3px 6px;font-size:10px}
+@media(max-width:760px){.shell{grid-template-columns:1fr}.hero{min-height:300px;padding:26px}.hero h1{margin:18px 0 12px}.hero .chips,.hero .foot{display:none}.panel{padding:24px}.roster{width:160px;left:8px;top:60px}.topbar{top:8px;font-size:10px}.topright{top:8px;right:8px}.topright .smallbtn{padding:7px}.bottomleft{left:8px;bottom:8px}.statbox{padding:8px 10px;min-width:85px}.bottomright{right:8px;bottom:8px}.settinggrid{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
-<main id="app">
-<section id="lobby" class="lobby">
-<div class="brand"><div class="brand-icon">S</div><div><div class="eyebrow">ONLINE ARENA</div><h1>Serega</h1></div></div>
-<p class="lead">Зови друзей. Создавай комнату. Побеждай.</p>
-<label class="field-label" for="nickname">ТВОЙ НИКНЕЙМ</label><input id="nickname" maxlength="18" placeholder="Например, Serega" autocomplete="nickname">
-<div class="profile-options">
-<div class="avatar-setting"><div id="avatarPreview" class="avatar-preview">👤</div><div><label class="field-label" for="avatarFile">АВАТАРКА</label><input id="avatarFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><button id="removeAvatarBtn" type="button" class="secondary">Убрать аватарку</button></div></div>
-<label class="field-label" for="weaponSelect">ОРУЖИЕ</label><select id="weaponSelect"><option value="pistol">Пистолет</option><option value="rifle">Автомат</option><option value="shotgun">Дробовик</option></select>
-<p>Управление: <span id="controlsSummary">W A S D</span></p><button id="openSettingsBtn" type="button" class="secondary">⚙ Настройки передвижения</button>
+<div id="lobby">
+ <div class="shell">
+  <section class="hero">
+   <div><div class="logo">SV / TACTICAL NETWORK</div><h1>SEREGA<br><span>V3.</span></h1><div class="sub">Тактический онлайн-шутер от первого лица. Создавай комнату, зови друзей по ссылке и выясняй, кто держит точку.</div><div class="chips"><span class="chip">3D MULTIPLAYER</span><span class="chip">T vs CT</span><span class="chip">ROOM CODES</span><span class="chip">DASH SYSTEM</span></div></div>
+   <div class="foot">EARLY ACCESS BUILD · BROWSER FPS · V3.0.0</div>
+  </section>
+  <section class="panel">
+   <h2>Войти в игру</h2><div class="muted">Создай новую комнату или подключись к друзьям.</div>
+   <label>ТВОЙ НИКНЕЙМ</label><input id="nickname" maxlength="18" placeholder="Например, Serega" value="Player">
+   <div class="fieldrow"><div><label>КОМАНДА</label><select id="team"><option value="AUTO">Автовыбор</option><option value="T">Террористы</option><option value="CT">Контр-террористы</option></select></div><div><label>КОД КОМНАТЫ</label><input id="roomcode" maxlength="8" placeholder="Пусто = создать"></div></div>
+   <label>АВАТАР ИГРОКА</label><div class="avatarrow"><div class="avatarpreview" id="avatarpreview">SV</div><button id="avatarpick">Загрузить аватар</button><input id="avatarfile" type="file" accept="image/*" class="hidden"></div>
+   <div class="actions"><button class="primary" id="create">＋ Создать комнату</button><button id="join">↗ Войти по коду</button></div>
+   <button class="full" id="settingsLobby">⚙ Настройки игры</button>
+   <div class="notice">После входа скопируй ссылку-приглашение и отправь её друзьям. Играть можно с клавиатуры и мыши; на телефонах управление ограничено.</div>
+  </section>
+ </div>
 </div>
-<button id="createBtn" class="primary" type="button">＋ Создать комнату</button>
-<div class="separator"><span>ИЛИ</span></div><label class="field-label" for="roomCode">КОД КОМНАТЫ</label>
-<div class="join-row"><input id="roomCode" maxlength="12" placeholder="Например, A7K9Q2"><button id="joinBtn" class="secondary" type="button">Войти</button></div>
-<p id="lobbyError" class="error" role="status"></p>
-<div class="controls-card"><div class="controls-title">УПРАВЛЕНИЕ</div><div class="key-row"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>— движение</span></div><div class="key-row"><kbd>МЫШЬ</kbd><span>— прицел</span><kbd>ЛКМ</kbd><span>— огонь</span></div></div>
-<p class="tiny">До 12 игроков в комнате · Серверная обработка попаданий</p>
-</section>
-<section id="game" class="game hidden">
-<header class="game-top"><div class="mini-brand"><span class="brand-dot">S</span><strong>Serega</strong><span class="live"><i></i> ONLINE</span></div><div class="room-actions"><span id="roomLabel">КОМНАТА —</span><button id="copyBtn" class="small-btn" type="button">↗ Пригласить</button><button id="openSettingsBtnGame" class="small-btn" type="button">⚙</button><button id="leaveBtn" class="small-btn exit" type="button">Выйти</button></div></header>
-<div class="game-layout"><div class="canvas-wrap"><canvas id="arena" width="1200" height="760"></canvas><div id="toast" class="toast hidden"></div><div class="hud"><div class="hp-wrap"><span>HP</span><div class="hp-track"><div id="hpBar"></div></div><b id="hpText">100</b></div><div class="hud-tip">WASD — движение · ЛКМ — стрелять · <span id="weaponLabel">Пистолет</span></div></div></div>
-<aside class="leaderboard"><div class="side-heading">ИГРОКИ <span id="playerCount">0/12</span></div><div id="sidePlayerCount" hidden>0/12</div><div id="playersList"></div><div class="side-note">1 — пистолет · 2 — автомат · 3 — дробовик</div></aside></div>
-<footer class="game-footer"><span><i class="green-dot"></i> Соединение с сервером активно</span><span>ARENA 01 · SEREGA</span></footer>
-</section>
-</main>
-<div id="settingsModal" class="settings-modal hidden" role="dialog" aria-modal="true" aria-label="Настройки управления"><div class="settings-panel"><h2>Настройки передвижения</h2><p>Нажми кнопку рядом с действием, затем выбери клавишу.</p><div id="keyBindings"></div><p id="bindingStatus" role="status"></p><div class="settings-actions"><button id="resetControlsBtn" type="button" class="secondary">Сбросить</button><button id="closeSettingsBtn" type="button" class="secondary">Закрыть</button><button id="saveSettingsBtn" type="button" class="primary">Готово</button></div></div></div>
-<script src="/client.js"></script>
+<div id="game" class="hidden">
+ <canvas id="world"></canvas>
+ <div class="hud">
+  <div class="topbar"><span class="live"></span><b>SEREGA V3</b><span style="color:#71849d">/</span><span id="roomlabel">ROOM —</span><span style="color:#71849d">/</span><span id="ping">ONLINE</span></div>
+  <div class="topright"><button class="smallbtn" id="invite">↗ Пригласить</button><button class="smallbtn" id="openSettings">⚙</button><button class="smallbtn" id="leave">Выйти</button></div>
+  <aside class="roster"><div class="rosterhead">ИГРОКИ В КОМНАТЕ <span id="playercount">0</span></div><div id="rosterlist"></div><div style="display:flex;gap:6px;margin-top:9px"><button class="smallbtn" id="addbot" style="flex:1">＋ Бот</button><button class="smallbtn" id="switchteam">Сменить команду</button></div></aside>
+  <div class="crosshair"></div><div class="feed" id="feed"></div>
+  <div class="bottomleft"><div class="statbox"><div class="statlabel">ЗДОРОВЬЕ</div><div class="statvalue" id="health">100</div><div class="hpbar"><div class="hpfill" id="hpfill"></div></div></div><div class="statbox"><div class="statlabel">УБИЙСТВА</div><div class="statvalue" id="kills">0</div></div><div class="statbox"><div class="statlabel">РЫВОК <span id="dashlabel">READY</span></div><div class="statvalue" style="font-size:15px">SHIFT</div></div></div>
+  <div class="bottomright"><div><span class="keycap">W A S D</span> двигаться · <span class="keycap">SHIFT</span> рывок</div><div style="margin-top:5px"><span class="keycap">ЛКМ</span> стрелять · <span class="keycap">TAB</span> счёт · <span class="keycap">ESC</span> меню</div></div>
+ </div>
+ <div id="settings" class="overlay hidden"><div class="modal"><h2>Настройки</h2><div class="muted">Настройки сохраняются в этом браузере.</div>
+  <div class="settinggrid"><div><label>ГРОМКОСТЬ</label><div class="range"><input id="volume" type="range" min="0" max="100" value="45"><output id="volumeval">45%</output></div></div><div><label>ЧУВСТВИТЕЛЬНОСТЬ МЫШИ</label><div class="range"><input id="sens" type="range" min="1" max="20" value="8"><output id="sensval">0.8</output></div></div></div>
+  <div class="fieldrow"><div><label>ВПЕРЁД</label><input id="keyForward" maxlength="1" value="W"></div><div><label>НАЗАД</label><input id="keyBack" maxlength="1" value="S"></div><div><label>ВЛЕВО</label><input id="keyLeft" maxlength="1" value="A"></div><div><label>ВПРАВО</label><input id="keyRight" maxlength="1" value="D"></div><div><label>РЫВОК</label><input id="keyDash" maxlength="12" value="SHIFT"></div><div><label>СТРЕЛЬБА</label><input value="ЛКМ" disabled></div></div>
+  <div class="fieldrow"><div><label>ГРАФИКА</label><select id="quality"><option value="high">Высокая</option><option value="medium">Средняя</option><option value="low">Низкая (FPS)</option></select></div><div><label>ЗВУК</label><select id="sound"><option value="on">Включён</option><option value="off">Выключен</option></select></div></div>
+  <div class="setting-actions"><button id="fullscreen">⛶ Полный экран</button><button id="closeSettings" class="primary">Готово</button></div>
+ </div></div>
+ <div id="scoreboard" class="overlay hidden"><div class="modal"><h2>Таблица счёта</h2><div class="muted" id="scoreSubtitle">Террористы против контр-террористов</div><table class="tabtable"><thead><tr><th>ИГРОК</th><th>КОМАНДА</th><th>УБИЙСТВА</th><th>HP</th></tr></thead><tbody id="scorebody"></tbody></table><div class="setting-actions"><button id="closeScore">Продолжить</button></div></div></div>
+ <div id="pause" class="overlay hidden"><div class="modal"><h2>Пауза</h2><div class="muted">Курсор освобождён. Нажми продолжить, чтобы вернуться в бой.</div><div class="setting-actions"><button id="resume" class="primary">Продолжить</button><button id="pauseSettings">Настройки</button><button id="pauseLeave">Выйти в меню</button></div></div></div>
+</div>
+<script type="module" src="/client.js"></script>
 </body></html>
