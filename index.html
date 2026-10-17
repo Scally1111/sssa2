@@ -44,7 +44,7 @@
   <div class="topright"><button class="smallbtn" id="invite">↗ Пригласить</button><button class="smallbtn" id="openSettings">⚙</button><button class="smallbtn" id="leave">Выйти</button></div>
   <aside class="roster"><div class="rosterhead">ИГРОКИ В КОМНАТЕ <span id="playercount">0</span></div><div id="rosterlist"></div><div style="display:flex;gap:6px;margin-top:9px"><button class="smallbtn" id="addbot" style="flex:1">＋ Бот</button><button class="smallbtn" id="switchteam">Сменить команду</button></div></aside>
   <div class="crosshair"></div><div class="feed" id="feed"></div>
-  <div class="bottomleft"><div class="statbox"><div class="statlabel">ЗДОРОВЬЕ</div><div class="statvalue" id="health">100</div><div class="hpbar"><div class="hpfill" id="hpfill"></div></div></div><div class="statbox"><div class="statlabel">УБИЙСТВА</div><div class="statvalue" id="kills">0</div></div><div class="statbox"><div class="statlabel">РЫВОК <span id="dashlabel">READY</span></div><div class="statvalue" style="font-size:15px">SHIFT</div></div></div>
+  <div class="bottomleft"><div class="statbox"><div class="statlabel">ЗДОРОВЬЕ</div><div class="statvalue" id="health">100</div><div class="hpbar"><div class="hpfill" id="hpfill"></div></div></div><div class="statbox"><div class="statlabel">УБИЙСТВА</div><div class="statvalue" id="kills">0</div></div></div>
   <div class="bottomright"><div><span class="keycap">W A S D</span> двигаться · <span class="keycap">SHIFT</span> рывок</div><div style="margin-top:5px"><span class="keycap">ЛКМ</span> стрелять · <span class="keycap">TAB</span> счёт · <span class="keycap">ESC</span> меню</div></div>
  </div>
  <div id="settings" class="overlay hidden"><div class="modal"><h2>Настройки</h2><div class="muted">Настройки сохраняются в этом браузере.</div>
@@ -53,7 +53,7 @@
   <div class="fieldrow"><div><label>ГРАФИКА</label><select id="quality"><option value="high">Высокая</option><option value="medium">Средняя</option><option value="low">Низкая (FPS)</option></select></div><div><label>ЗВУК</label><select id="sound"><option value="on">Включён</option><option value="off">Выключен</option></select></div></div>
   <div class="setting-actions"><button id="fullscreen">⛶ Полный экран</button><button id="closeSettings" class="primary">Готово</button></div>
  </div></div>
- <div id="scoreboard" class="overlay hidden"><div class="modal"><h2>Таблица счёта</h2><div class="muted" id="scoreSubtitle">Террористы против контр-террористов</div><table class="tabtable"><thead><tr><th>ИГРОК</th><th>КОМАНДА</th><th>УБИЙСТВА</th><th>HP</th></tr></thead><tbody id="scorebody"></tbody></table><div class="setting-actions"><button id="closeScore">Продолжить</button></div></div></div>
+ <div id="scoreboard" class="overlay hidden"><div class="modal"><h2>Таблица счёта</h2><div class="muted" id="scoreSubtitle">Террористы против контр-террористов</div><table class="tabtable"><thead><tr><th>ИГРОК</th><th>КОМАНДА</th><th>УБИЙСТВА</th><th>HP</th></tr></thead><tbody id="scorebody"></tbody></table><div class="setting-actions"><button id="scoreSettings">⚙ Настройки</button><button id="closeScore">Продолжить</button></div></div></div>
  <div id="pause" class="overlay hidden"><div class="modal"><h2>Пауза</h2><div class="muted">Курсор освобождён. Нажми продолжить, чтобы вернуться в бой.</div><div class="setting-actions"><button id="resume" class="primary">Продолжить</button><button id="pauseSettings">Настройки</button><button id="pauseLeave">Выйти в меню</button></div></div></div>
 </div>
 <script type="module" src="/client.js"></script>
